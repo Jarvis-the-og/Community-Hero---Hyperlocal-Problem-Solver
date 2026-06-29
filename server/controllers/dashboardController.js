@@ -1,22 +1,32 @@
 import { getIssues, getIssueById } from '../services/issueService.js';
 import { Priority } from '@community-hero/shared/enums/index.js';
+import { createCacheKey, withGovernedRequest } from '../services/governance/index.js';
 
 export async function getDashboard(req, res, next) {
   try {
-    const issues = await getIssues();
-    const active = issues.filter((i) => !['ai_verified', 'rejected'].includes(i.status));
+    const dashboard = await withGovernedRequest({
+      api: 'firestore',
+      operation: 'dashboard_summary',
+      cacheKey: createCacheKey('firestore:dashboard', { scope: 'global' }),
+      cacheTtlMs: 30 * 1000,
+      timeoutMs: 15_000,
+      requestFn: async () => {
+        const issues = await getIssues();
+        const active = issues.filter((i) => !['ai_verified', 'rejected'].includes(i.status));
 
-    const dashboard = {
-      critical: active.filter((i) => i.priority === Priority.CRITICAL),
-      medium: active.filter((i) => i.priority === Priority.MEDIUM),
-      low: active.filter((i) => i.priority === Priority.LOW),
-      stats: {
-        total: active.length,
-        critical: active.filter((i) => i.priority === Priority.CRITICAL).length,
-        inProgress: active.filter((i) => i.status === 'in_progress').length,
-        pendingVerification: active.filter((i) => i.status === 'ai_categorized').length,
+        return {
+          critical: active.filter((i) => i.priority === Priority.CRITICAL),
+          medium: active.filter((i) => i.priority === Priority.MEDIUM),
+          low: active.filter((i) => i.priority === Priority.LOW),
+          stats: {
+            total: active.length,
+            critical: active.filter((i) => i.priority === Priority.CRITICAL).length,
+            inProgress: active.filter((i) => i.status === 'in_progress').length,
+            pendingVerification: active.filter((i) => i.status === 'ai_categorized').length,
+          },
+        };
       },
-    };
+    });
 
     res.json(dashboard);
   } catch (error) {

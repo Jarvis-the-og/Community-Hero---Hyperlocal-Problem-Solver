@@ -2,6 +2,10 @@ import { generateText } from '../services/gemini/index.js';
 import { CHAT_PROMPT } from '../services/gemini/prompts/index.js';
 import { getIssues, getNearbyIssues, getIssueById } from '../services/issueService.js';
 
+function buildFallbackReply(message) {
+  return "I'm currently experiencing some network issues and can't process your request fully. You can try exploring the Map for nearby issues or the Report page to file a new complaint.";
+}
+
 export async function chat(req, res, next) {
   try {
     const { message, issueId, lat, lng } = req.body;
@@ -23,19 +27,30 @@ export async function chat(req, res, next) {
       }
     }
 
-    const userIssues = await getIssues({ reporterId: req.user.uid });
-    if (userIssues.length) {
-      context += `\nUser's reports: ${userIssues.map((i) => `"${i.title}" (${i.status})`).join(', ')}`;
+    if (req.user?.uid) {
+      const userIssues = await getIssues({ reporterId: req.user.uid });
+      if (userIssues.length) {
+        context += `\nUser's reports: ${userIssues.map((i) => `"${i.title}" (${i.status})`).join(', ')}`;
+      }
     }
 
     const prompt = `${CHAT_PROMPT}\n\nContext:${context}\n\nUser: ${message}\n\nAssistant:`;
 
-    const response = await generateText(prompt);
-    res.json({ reply: response.trim() });
+    try {
+      const response = await generateText(prompt);
+      const reply = response.trim();
+      if (reply) {
+        return res.json({ reply });
+      }
+    } catch (aiError) {
+      console.warn('Gemini chat fallback:', aiError.message);
+    }
+
+    return res.json({ reply: buildFallbackReply(message) });
   } catch (error) {
     console.error('Chat error:', error.message);
     res.json({
-      reply: "I'm having trouble connecting right now. You can report issues from the Report page, track them in My Issues, or view nearby problems on the Map.",
+      reply: buildFallbackReply(req.body?.message || ''),
     });
   }
 }

@@ -65,7 +65,7 @@ Issue details:
 - Near hospital: ${context.nearHospital || false}
 - Near school: ${context.nearSchool || false}`;
 
-    const response = await generateText(prompt);
+    const response = await generateText(prompt, { json: true });
     const parsed = parseJsonResponse(response);
 
     if (parsed?.priority) {

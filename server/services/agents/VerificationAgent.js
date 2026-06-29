@@ -1,24 +1,16 @@
-import { generateFromImage, parseJsonResponse } from '../gemini/index.js';
+import { generateFromImages, parseJsonResponse } from '../gemini/index.js';
 import { VERIFICATION_PROMPT } from '../gemini/prompts/index.js';
 import { ResolutionStatus } from '@community-hero/shared/enums/index.js';
+import { createCacheKey, withGovernedRequest } from '../governance/index.js';
 
 export async function verifyCompletion(beforeBuffer, afterBuffer, mimeType = 'image/jpeg') {
   try {
-    const beforeBase64 = beforeBuffer.toString('base64');
-    const afterBase64 = afterBuffer.toString('base64');
-
-    const model = (await import('../gemini/index.js')).getModel();
-    const result = await model.generateContent([
-      VERIFICATION_PROMPT,
-      'BEFORE image:',
-      { inlineData: { data: beforeBase64, mimeType } },
-      'AFTER image:',
-      { inlineData: { data: afterBase64, mimeType } },
+    const response = await generateFromImages(VERIFICATION_PROMPT, [
+      { buffer: beforeBuffer, data: beforeBuffer.toString('base64'), mimeType },
+      { buffer: afterBuffer, data: afterBuffer.toString('base64'), mimeType },
     ]);
 
-    const response = result.response.text();
     const parsed = parseJsonResponse(response);
-
     if (parsed?.status) {
       return {
         status: parsed.status,
@@ -27,6 +19,9 @@ export async function verifyCompletion(beforeBuffer, afterBuffer, mimeType = 'im
       };
     }
   } catch (error) {
+    if (error?.status === 429 || String(error?.code || '').includes('quota')) {
+      throw error;
+    }
     console.error('VerificationAgent error:', error.message);
   }
 
@@ -39,13 +34,33 @@ export async function verifyCompletion(beforeBuffer, afterBuffer, mimeType = 'im
 
 export async function verifyCompletionFromUrls(beforeUrl, afterUrl) {
   try {
-    const [beforeRes, afterRes] = await Promise.all([fetch(beforeUrl), fetch(afterUrl)]);
-    const [beforeBuffer, afterBuffer] = await Promise.all([
-      Buffer.from(await beforeRes.arrayBuffer()),
-      Buffer.from(await afterRes.arrayBuffer()),
-    ]);
+    const { beforeBuffer, afterBuffer } = await withGovernedRequest({
+      api: 'storage',
+      operation: 'fetch_verification_images',
+      cacheKey: createCacheKey('storage:verification_images', { beforeUrl, afterUrl }),
+      cacheTtlMs: 10 * 60 * 1000,
+      timeoutMs: 15_000,
+      requestFn: async ({ signal }) => {
+        const [beforeRes, afterRes] = await Promise.all([
+          fetch(beforeUrl, { signal }),
+          fetch(afterUrl, { signal }),
+        ]);
+        const [beforeArrayBuffer, afterArrayBuffer] = await Promise.all([
+          beforeRes.arrayBuffer(),
+          afterRes.arrayBuffer(),
+        ]);
+        return {
+          beforeBuffer: Buffer.from(beforeArrayBuffer),
+          afterBuffer: Buffer.from(afterArrayBuffer),
+        };
+      },
+    });
+
     return verifyCompletion(beforeBuffer, afterBuffer);
   } catch (error) {
+    if (error?.status === 429 || String(error?.code || '').includes('quota')) {
+      throw error;
+    }
     console.error('VerificationAgent URL error:', error.message);
     return {
       status: ResolutionStatus.NEED_MANUAL_REVIEW,

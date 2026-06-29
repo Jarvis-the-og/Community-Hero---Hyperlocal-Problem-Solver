@@ -2,9 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { config, validateConfig } from './config/index.js';
-import { initializeFirebase } from './services/firebase/index.js';
+import { config, validateConfig, isDemoMode } from './config/index.js';
+import { initializeFirebase, isFirebaseConfigured } from './services/firebase/index.js';
 import { errorHandler } from './middleware/index.js';
+import {
+  createBurstRateLimit,
+  createRequestContextMiddleware,
+  createRequestLogger,
+} from './middleware/governance.js';
 import { inMemoryStore } from './utils/inMemoryStore.js';
 
 import authRoutes from './routes/authRoutes.js';
@@ -19,7 +24,13 @@ import notificationRoutes from './routes/notificationRoutes.js';
 
 validateConfig();
 initializeFirebase();
-inMemoryStore.seed();
+
+if (isDemoMode() || !isFirebaseConfigured()) {
+  inMemoryStore.seed();
+  console.log('Running with demo/in-memory data fallback');
+} else {
+  console.log('Firebase configured — using live persistence');
+}
 
 const app = express();
 
@@ -28,6 +39,9 @@ app.use(cors({ origin: config.clientUrl, credentials: true }));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(createRequestContextMiddleware());
+app.use(createRequestLogger());
+app.use('/api', createBurstRateLimit());
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'Community Hero API', version: '1.0.0' });

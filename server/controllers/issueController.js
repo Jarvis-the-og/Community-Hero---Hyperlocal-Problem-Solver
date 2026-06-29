@@ -95,10 +95,18 @@ export async function createNewIssue(req, res, next) {
     } = req.body;
 
     let mediaUrls = [];
+    if (req.body.mediaUrls) {
+      try {
+        mediaUrls = JSON.parse(req.body.mediaUrls);
+      } catch {
+        mediaUrls = [req.body.mediaUrls].filter(Boolean);
+      }
+    }
     if (req.files?.length) {
-      mediaUrls = await Promise.all(
+      const uploaded = await Promise.all(
         req.files.map((file) => uploadMedia(file.buffer, file.originalname, file.mimetype))
       );
+      mediaUrls = [...mediaUrls, ...uploaded];
     }
 
     let location = { lat: parseFloat(lat), lng: parseFloat(lng) };
