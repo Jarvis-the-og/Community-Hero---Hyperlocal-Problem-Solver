@@ -15,6 +15,22 @@ function useFirestoreRest() {
   return !isFirebaseAdminReady() && isRestClientAvailable();
 }
 
+function omitUndefinedValues(value) {
+  if (Array.isArray(value)) {
+    return value.map(omitUndefinedValues).filter((item) => item !== undefined);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, entryValue]) => entryValue !== undefined)
+        .map(([key, entryValue]) => [key, omitUndefinedValues(entryValue)])
+    );
+  }
+
+  return value;
+}
+
 export async function getIssues(filters = {}) {
   const db = getDb();
   if (db) {
@@ -63,7 +79,7 @@ export async function getIssueById(id) {
 }
 
 export async function createIssue(data) {
-  const issueData = {
+  const issueData = omitUndefinedValues({
     ...data,
     supportCount: data.supportCount ?? 0,
     verificationScore: data.verificationScore ?? 0,
@@ -72,7 +88,7 @@ export async function createIssue(data) {
     timeline: data.timeline || [
       { status: IssueStatus.REPORTED, label: 'Reported', timestamp: new Date().toISOString() },
     ],
-  };
+  });
 
   const db = getDb();
   if (db) {
@@ -88,7 +104,7 @@ export async function createIssue(data) {
 }
 
 export async function updateIssue(id, updates) {
-  const updateData = { ...updates, updatedAt: new Date().toISOString() };
+  const updateData = omitUndefinedValues({ ...updates, updatedAt: new Date().toISOString() });
 
   const db = getDb();
   if (db) {
@@ -150,7 +166,7 @@ export async function getUser(id) {
 }
 
 export async function upsertUser(data) {
-  const userData = { ...data, updatedAt: new Date().toISOString() };
+  const userData = omitUndefinedValues({ ...data, updatedAt: new Date().toISOString() });
 
   const db = getDb();
   if (db) {
@@ -215,7 +231,7 @@ export async function getComments(issueId) {
 }
 
 export async function addComment(data) {
-  const commentData = { ...data, createdAt: new Date().toISOString() };
+  const commentData = omitUndefinedValues({ ...data, createdAt: new Date().toISOString() });
 
   const db = getDb();
   if (db) {
@@ -231,7 +247,7 @@ export async function addComment(data) {
 }
 
 export async function addVerification(data) {
-  const verificationData = { ...data, createdAt: new Date().toISOString() };
+  const verificationData = omitUndefinedValues({ ...data, createdAt: new Date().toISOString() });
 
   const db = getDb();
   if (db) {
