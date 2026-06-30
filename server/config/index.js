@@ -21,7 +21,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
   flags: {
-    enableGemini: envFlag('ENABLE_GEMINI', true),
+    enableAI: envFlag('ENABLE_AI', true) && Boolean(process.env.GROQ_API_KEY),
     enableMaps: envFlag('ENABLE_MAPS', true),
     enableChatbot: envFlag('ENABLE_CHATBOT', true),
     enableFirebase: envFlag('ENABLE_FIREBASE', true),
@@ -47,7 +47,7 @@ export function isDemoMode() {
 
 export function validateConfig() {
   const warnings = [];
-  if (config.flags.enableGemini && !config.groqApiKey) warnings.push('GROQ_API_KEY');
+  if (config.flags.enableAI && !config.groqApiKey) warnings.push('GROQ_API_KEY');
   if (config.flags.enableMaps && !process.env.GOOGLE_MAPS_API_KEY) warnings.push('GOOGLE_MAPS_API_KEY');
   if (config.flags.enableFirebase && !config.firebase.projectId) warnings.push('FIREBASE_PROJECT_ID');
   if (config.flags.enableFirebase && (!config.firebase.clientEmail || !config.firebase.privateKey)) {

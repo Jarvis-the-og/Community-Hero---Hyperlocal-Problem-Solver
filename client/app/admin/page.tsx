@@ -15,10 +15,12 @@ import { ErrorState } from '@/components/ui/empty-state';
 import { IssueMap } from '@/components/map/IssueMap';
 import { Badge } from '@/components/ui/badge';
 import { DEFAULT_LOCATION } from '@/constants';
+import { useDeployment } from '@/hooks/useDeployment';
 
 export default function AdminPage() {
+  const deploy = useDeployment();
   const { token } = useAuth();
-  const { authorized } = useRoleGuard('admin', 'authority');
+  const { authorized, loading: authLoading } = useRoleGuard('admin', 'authority');
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function AdminPage() {
     if (authorized && token) load();
   }, [authorized, token]);
 
-  if (loading) return <div className="max-w-7xl mx-auto px-4 py-8"><StatsSkeleton /></div>;
+  if (authLoading || loading) return <div className="max-w-7xl mx-auto px-4 py-8"><StatsSkeleton /></div>;
   if (!authorized) return null;
   if (error) return <div className="max-w-7xl mx-auto px-4 py-8"><ErrorState message={error} onRetry={load} /></div>;
   if (!dashboard) return null;
@@ -82,7 +84,7 @@ export default function AdminPage() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <div className="flex items-center gap-3 mb-2">
           <Building2 className="w-8 h-8 text-primary" />
-          <h1 className="text-3xl font-bold">Municipal Corporation</h1>
+          <h1 className="text-3xl font-bold">{deploy.authorityName}</h1>
         </div>
         <p className="text-muted mb-8">City-wide governance dashboard</p>
 

@@ -1,4 +1,4 @@
-import { getNotifications } from '../services/issueService.js';
+import { getNotifications, markNotificationRead } from '../services/issueService.js';
 
 export async function getUserNotifications(req, res, next) {
   try {
@@ -11,13 +11,7 @@ export async function getUserNotifications(req, res, next) {
 
 export async function markAsRead(req, res, next) {
   try {
-    const { getDb } = await import('../services/firebase/index.js');
-    const db = getDb();
-
-    if (db) {
-      await db.collection('notifications').doc(req.params.id).update({ read: true });
-    }
-
+    await markNotificationRead(req.params.id);
     res.json({ success: true });
   } catch (error) {
     next(error);

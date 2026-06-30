@@ -173,8 +173,8 @@ server/
 │   └── (auth, comment, leaderboard, analytics)
 ├── routes/                             # Express routers (one per domain)
 ├── services/
-│   ├── gemini/index.js                 # Groq AI client (generateText, generateFromImage)
-│   ├── gemini/prompts/index.js         # All AI prompt constants
+│   ├── Groq/index.js                 # Groq AI client (generateText, generateFromImage)
+│   ├── Groq/prompts/index.js         # All AI prompt constants
 │   ├── agents/
 │   │   ├── VisionAgent.js              # Image → issue classification
 │   │   ├── LocationAgent.js            # GPS → address + landmarks (Google Maps REST)
@@ -241,7 +241,7 @@ NODE_ENV=development
 CLIENT_URL=http://localhost:3000
 
 # Feature flags (set to false to disable)
-ENABLE_GEMINI=true
+ENABLE_Groq=true
 ENABLE_MAPS=true
 ENABLE_CHATBOT=true
 ENABLE_FIREBASE=true

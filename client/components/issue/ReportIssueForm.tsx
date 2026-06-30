@@ -56,7 +56,7 @@ async function forwardGeocodeClient(address: string): Promise<{ lat: number; lng
 
 export function ReportIssueForm() {
   const router = useRouter();
-  const { token, user, signIn } = useAuth();
+  const { token, user } = useAuth();
   const { lat, lng, hasLocation, loading: geoLoading, error: geoError, refresh } =
     useGeolocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -266,8 +266,10 @@ export function ReportIssueForm() {
       <div className="max-w-md mx-auto px-4 py-16 text-center">
         <LogIn className="w-12 h-12 text-primary mx-auto mb-4" />
         <h1 className="text-2xl font-bold mb-2">Sign In Required</h1>
-        <p className="text-muted mb-6">Sign in with Google to report community issues and earn points.</p>
-        <Button onClick={() => signIn().catch(() => {})}>Sign In with Google</Button>
+        <p className="text-muted mb-6">Sign in to report community issues and earn points.</p>
+        <Link href="/auth">
+          <Button>Go to Sign In</Button>
+        </Link>
       </div>
     );
   }

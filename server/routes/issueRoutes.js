@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate } from '../middleware/index.js';
+import { authenticate, optionalAuthenticate, requireRole } from '../middleware/index.js';
 import { createRouteQuotaGuard } from '../middleware/governance.js';
 import { upload } from '../middleware/upload.js';
 import * as issueController from '../controllers/issueController.js';
@@ -7,7 +7,7 @@ import * as issueController from '../controllers/issueController.js';
 const router = Router();
 
 router.get('/', authenticate, issueController.getAllIssues);
-router.get('/nearby', authenticate, issueController.getNearby);
+router.get('/nearby', optionalAuthenticate, issueController.getNearby);
 router.get('/:id', authenticate, issueController.getIssue);
 router.post(
   '/analyze',
@@ -24,7 +24,8 @@ router.post(
 router.post('/check-duplicates', authenticate, issueController.checkDuplicates);
 router.post('/', authenticate, upload.array('media', 5), issueController.createNewIssue);
 router.post('/:id/support', authenticate, issueController.supportExistingIssue);
-router.patch('/:id/status', authenticate, issueController.updateIssueStatus);
+router.patch('/:id/status', authenticate, requireRole('authority', 'admin', 'department', 'worker'), issueController.updateIssueStatus);
+router.post('/:id/confirm-resolution', authenticate, issueController.citizenConfirmResolution);
 router.post(
   '/:id/resolution-images',
   authenticate,

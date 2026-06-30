@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Loader2, CheckCircle, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useDeployment } from '@/hooks/useDeployment';
 
 export const LOCALITY_KEY = 'ch_user_locality';
 
@@ -14,10 +15,11 @@ export interface UserLocality {
   address: string;
 }
 
-export function getStoredLocality(): UserLocality | null {
+export function getStoredLocality(): UserLocality | 'skipped' | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(LOCALITY_KEY);
+    if (raw === 'skipped') return 'skipped';
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -60,10 +62,11 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 }
 
 interface OnboardingModalProps {
-  onComplete: (locality: UserLocality) => void;
+  onComplete: (locality: UserLocality | null) => void;
 }
 
 export function OnboardingModal({ onComplete }: OnboardingModalProps) {
+  const deploy = useDeployment();
   const [step, setStep] = useState<'choose' | 'manual' | 'locating'>('choose');
   const [manualInput, setManualInput] = useState('');
   const [geocoding, setGeocoding] = useState(false);
@@ -73,6 +76,19 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
   // Debounced forward geocode as user types
   useEffect(() => {
     if (manualInput.trim().length < 4) { setGeooded(null); return; }
+    
+    // 1. First check deployment configuration for a fast local match
+    const lowerInput = manualInput.toLowerCase();
+    const localMatch = deploy.localities.find(l => 
+      l.name.toLowerCase().includes(lowerInput) || lowerInput.includes(l.name.toLowerCase())
+    );
+    
+    if (localMatch) {
+      setGeooded({ lat: localMatch.lat, lng: localMatch.lng, formatted: `${localMatch.name}, ${deploy.city}` });
+      return;
+    }
+
+    // 2. Fallback to Google Maps API if no fast match
     const timer = setTimeout(async () => {
       setGeocoding(true);
       const result = await forwardGeocode(manualInput);
@@ -80,7 +96,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
       setGeocoding(false);
     }, 600);
     return () => clearTimeout(timer);
-  }, [manualInput]);
+  }, [manualInput, deploy]);
 
   const handleLiveLocation = () => {
     setStep('locating');
@@ -122,7 +138,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
           </div>
           <h2 className="text-2xl font-bold">Welcome to Community Hero</h2>
           <p className="text-muted mt-2 text-sm">
-            To show you issues near you, we need to know your locality.
+            To show you issues near you in {deploy.city}, we need to know your locality.
           </p>
         </div>
 
@@ -154,6 +170,17 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   <p className="text-xs opacity-70">Type a neighbourhood, street or landmark</p>
                 </div>
               </Button>
+
+              <Button
+                variant="ghost"
+                className="w-full mt-2 text-sm text-muted hover:text-foreground"
+                onClick={() => {
+                  localStorage.setItem(LOCALITY_KEY, 'skipped');
+                  onComplete(null);
+                }}
+              >
+                Skip for now
+              </Button>
             </motion.div>
           )}
 
@@ -182,7 +209,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                   autoFocus
                   value={manualInput}
                   onChange={(e) => { setManualInput(e.target.value); setGeooded(null); }}
-                  placeholder="e.g. Park Street, Kolkata"
+                  placeholder={`e.g. ${deploy.localities[0]?.name || 'City Center'}, ${deploy.city}`}
                   className="pr-10"
                 />
                 {geocoding && (

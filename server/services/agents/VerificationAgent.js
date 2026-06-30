@@ -1,5 +1,5 @@
-import { generateFromImages, parseJsonResponse } from '../gemini/index.js';
-import { VERIFICATION_PROMPT } from '../gemini/prompts/index.js';
+import { generateFromImages, parseJsonResponse } from '../ai/index.js';
+import { VERIFICATION_PROMPT } from '../ai/prompts/index.js';
 import { ResolutionStatus } from '@community-hero/shared/enums/index.js';
 import { createCacheKey, withGovernedRequest } from '../governance/index.js';
 

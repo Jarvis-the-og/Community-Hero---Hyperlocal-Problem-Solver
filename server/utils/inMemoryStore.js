@@ -7,6 +7,7 @@ const store = {
   comments: new Map(),
   verifications: new Map(),
   notifications: new Map(),
+  internalComments: new Map(),
   seeded: false,
 };
 
@@ -22,7 +23,7 @@ function seedDemoData() {
       severity: Severity.CRITICAL,
       priority: Priority.CRITICAL,
       status: IssueStatus.COMMUNITY_VERIFIED,
-      location: { lat: 28.6139, lng: 77.209, address: 'Connaught Place, New Delhi' },
+      location: { lat: 28.6139, lng: 77.209, address: 'Park Street, Kolkata' },
       supportCount: 12,
       verificationScore: 85,
       department: 'Public Works',
@@ -34,10 +35,12 @@ function seedDemoData() {
       severity: Severity.MEDIUM,
       priority: Priority.MEDIUM,
       status: IssueStatus.ASSIGNED,
-      location: { lat: 28.6205, lng: 77.215, address: 'Janpath, New Delhi' },
+      location: { lat: 28.6205, lng: 77.215, address: 'Gariahat, Kolkata' },
       supportCount: 5,
       verificationScore: 70,
-      department: 'Sanitation',
+      department: 'Garbage Department',
+      assignedTo: 'demo-worker',
+      assignedWorkerName: 'Field Worker Demo',
     },
     {
       title: 'Broken Streetlight',
@@ -46,10 +49,10 @@ function seedDemoData() {
       severity: Severity.MEDIUM,
       priority: Priority.MEDIUM,
       status: IssueStatus.IN_PROGRESS,
-      location: { lat: 28.608, lng: 77.22, address: 'India Gate Area, New Delhi' },
+      location: { lat: 28.608, lng: 77.22, address: 'Sector V, Kolkata' },
       supportCount: 8,
       verificationScore: 60,
-      department: 'Electrical',
+      department: 'Electricity Department',
     },
     {
       title: 'Water Pipeline Leak',
@@ -58,10 +61,10 @@ function seedDemoData() {
       severity: Severity.CRITICAL,
       priority: Priority.CRITICAL,
       status: IssueStatus.REPORTED,
-      location: { lat: 28.625, lng: 77.205, address: 'Rajpath, New Delhi' },
+      location: { lat: 28.625, lng: 77.205, address: 'Esplanade, Kolkata' },
       supportCount: 3,
       verificationScore: 40,
-      department: 'Water Board',
+      department: 'Water Department',
     },
     {
       title: 'Fallen Tree Blocking Sidewalk',
@@ -70,10 +73,62 @@ function seedDemoData() {
       severity: Severity.MEDIUM,
       priority: Priority.LOW,
       status: IssueStatus.AI_VERIFIED,
-      location: { lat: 28.61, lng: 77.23, address: 'Lodhi Gardens Area, New Delhi' },
+      location: { lat: 28.61, lng: 77.23, address: 'Jadavpur, Kolkata' },
       supportCount: 15,
       verificationScore: 95,
-      department: 'Parks & Recreation',
+      department: 'Public Works',
+    },
+    {
+      title: 'Damaged Drain Cover',
+      description: 'Open drain cover creating a hazard near the market entrance.',
+      category: IssueCategory.DRAINAGE,
+      severity: Severity.CRITICAL,
+      priority: Priority.CRITICAL,
+      status: IssueStatus.ESCALATED,
+      location: { lat: 28.6182, lng: 77.2125, address: 'Shyambazar, Kolkata' },
+      supportCount: 21,
+      verificationScore: 92,
+      department: 'Water Department',
+    },
+    {
+      title: 'Repeated Illegal Dumping',
+      description: 'Construction waste dumped repeatedly on the roadside.',
+      category: IssueCategory.ILLEGAL_DUMPING,
+      severity: Severity.MEDIUM,
+      priority: Priority.MEDIUM,
+      status: IssueStatus.PAUSED,
+      location: { lat: 28.6065, lng: 77.2188, address: 'EM Bypass, Kolkata' },
+      supportCount: 4,
+      verificationScore: 52,
+      department: 'Garbage Department',
+      assignedTo: 'demo-worker',
+      assignedWorkerName: 'Field Worker Demo',
+    },
+    {
+      title: 'Resolved Sidewalk Crack',
+      description: 'Sidewalk crack repaired after citizen reports and field inspection.',
+      category: IssueCategory.ROAD_DAMAGE,
+      severity: Severity.LOW,
+      priority: Priority.LOW,
+      status: IssueStatus.COMPLETED,
+      location: { lat: 28.6095, lng: 77.2042, address: 'College Street, Kolkata' },
+      supportCount: 18,
+      verificationScore: 97,
+      department: 'Public Works',
+      assignedTo: 'demo-worker',
+      assignedWorkerName: 'Field Worker Demo',
+    },
+    {
+      title: 'Noise Complaint Near School',
+      description: 'Community noise complaint with no evidence after review.',
+      category: IssueCategory.OTHER,
+      severity: Severity.LOW,
+      priority: Priority.LOW,
+      status: IssueStatus.REJECTED,
+      location: { lat: 28.6228, lng: 77.2088, address: 'Bhowanipore, Kolkata' },
+      supportCount: 2,
+      verificationScore: 18,
+      department: 'Health Department',
     },
   ];
 
@@ -110,10 +165,87 @@ function seedDemoData() {
     id: 'demo-authority',
     email: 'authority@communityhero.app',
     displayName: 'City Authority',
-    role: 'authority',
-    points: 0,
+    role: 'admin',
+    points: 320,
     badges: [],
     createdAt: new Date().toISOString(),
+  });
+
+  store.users.set('demo-department', {
+    id: 'demo-department',
+    email: 'dept@communityhero.app',
+    displayName: 'Public Works Officer',
+    role: 'department',
+    department: 'Public Works',
+    points: 210,
+    badges: [],
+    createdAt: new Date().toISOString(),
+  });
+
+  store.users.set('demo-worker', {
+    id: 'demo-worker',
+    email: 'worker@communityhero.app',
+    displayName: 'Field Worker Demo',
+    role: 'worker',
+    department: 'Garbage Department',
+    points: 180,
+    badges: [],
+    createdAt: new Date().toISOString(),
+  });
+
+  const now = Date.now();
+  const issueList = [...store.issues.values()];
+  const notificationSeed = [
+    {
+      userId: 'demo-user',
+      type: 'issue_resolved',
+      title: 'Streetlight Fixed',
+      message: 'Broken Streetlight has been marked resolved.',
+      issueId: issueList[2]?.id,
+      read: false,
+      createdAt: new Date(now - 1000 * 60 * 20).toISOString(),
+    },
+    {
+      userId: 'demo-user',
+      type: 'issue_escalated',
+      title: 'Water Leak Escalated',
+      message: 'Water Pipeline Leak has been escalated for urgent review.',
+      issueId: issueList[3]?.id,
+      read: true,
+      createdAt: new Date(now - 1000 * 60 * 90).toISOString(),
+    },
+    {
+      userId: 'demo-authority',
+      type: 'issue_received',
+      title: 'New Issue Reported',
+      message: 'Large Pothole on Main Street reported near Park Street, Kolkata.',
+      issueId: issueList[0]?.id,
+      read: false,
+      createdAt: new Date(now - 1000 * 60 * 10).toISOString(),
+    },
+    {
+      userId: 'demo-department',
+      type: 'issue_assigned',
+      title: 'Issue Assigned',
+      message: 'Fallen Tree Blocking Sidewalk is ready for review.',
+      issueId: issueList[4]?.id,
+      read: false,
+      createdAt: new Date(now - 1000 * 60 * 35).toISOString(),
+    },
+    {
+      userId: 'demo-worker',
+      type: 'issue_assigned',
+      title: 'New Assignment',
+      message: 'You have been assigned Overflowing Garbage Bin.',
+      issueId: issueList[1]?.id,
+      read: false,
+      createdAt: new Date(now - 1000 * 60 * 15).toISOString(),
+    },
+  ];
+
+  notificationSeed.forEach((notification) => {
+    const id = uuidv4();
+    store.notifications.set(id, { id, ...notification });
   });
 }
 
@@ -141,8 +273,44 @@ export const inMemoryStore = {
     if (filters.category) issues = issues.filter((i) => i.category === filters.category);
     if (filters.priority) issues = issues.filter((i) => i.priority === filters.priority);
     if (filters.reporterId) issues = issues.filter((i) => i.reporterId === filters.reporterId);
+    if (filters.department) issues = issues.filter((i) => i.department === filters.department);
+    if (filters.assignedTo) issues = issues.filter((i) => i.assignedTo === filters.assignedTo);
 
     return issues.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  },
+
+  getUsersByRole(role) {
+    seedDemoData();
+    return [...store.users.values()].filter((u) => u.role === role);
+  },
+
+  getUsersByEmail(email) {
+    seedDemoData();
+    return [...store.users.values()].find((u) => u.email === email) || null;
+  },
+
+  migrateUserReferences(fromId, toId, email) {
+    seedDemoData();
+    for (const issue of store.issues.values()) {
+      if (issue.reporterId === fromId || (email && issue.reporterEmail === email)) {
+        issue.reporterId = toId;
+      }
+      if (issue.assignedTo === fromId || (email && issue.assignedToEmail === email)) {
+        issue.assignedTo = toId;
+      }
+    }
+
+    for (const notification of store.notifications.values()) {
+      if (notification.userId === fromId || (email && notification.userId === email)) {
+        notification.userId = toId;
+      }
+    }
+
+    const user = store.users.get(fromId);
+    if (user) {
+      store.users.delete(fromId);
+      store.users.set(toId, { ...user, id: toId, email: email || user.email, updatedAt: new Date().toISOString() });
+    }
   },
 
   getIssue(id) {
@@ -207,9 +375,31 @@ export const inMemoryStore = {
 
   addNotification(notification) {
     const id = uuidv4();
-    const newNotification = { id, ...notification };
+    const newNotification = { id, ...notification, createdAt: notification.createdAt || new Date().toISOString() };
     store.notifications.set(id, newNotification);
     return newNotification;
+  },
+
+  markNotificationRead(id) {
+    const notification = store.notifications.get(id);
+    if (notification) {
+      notification.read = true;
+      store.notifications.set(id, notification);
+    }
+    return { success: true };
+  },
+
+  getInternalComments(issueId) {
+    return [...store.internalComments.values()]
+      .filter((c) => c.issueId === issueId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  },
+
+  addInternalComment(comment) {
+    const id = uuidv4();
+    const newComment = { id, ...comment, createdAt: new Date().toISOString() };
+    store.internalComments.set(id, newComment);
+    return newComment;
   },
 
   getLeaderboard(limit = 10) {

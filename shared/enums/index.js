@@ -1,6 +1,8 @@
 export const UserRole = {
   CITIZEN: 'citizen',
   VOLUNTEER: 'volunteer',
+  DEPARTMENT: 'department',
+  WORKER: 'worker',
   AUTHORITY: 'authority',
   ADMIN: 'admin',
 };
@@ -11,9 +13,11 @@ export const IssueStatus = {
   COMMUNITY_VERIFIED: 'community_verified',
   ASSIGNED: 'assigned',
   IN_PROGRESS: 'in_progress',
+  PAUSED: 'paused',
   COMPLETED: 'completed',
   AI_VERIFIED: 'ai_verified',
   REJECTED: 'rejected',
+  ESCALATED: 'escalated',
 };
 
 export const IssueCategory = {
@@ -62,12 +66,16 @@ export const BadgeType = {
 };
 
 export const NotificationType = {
+  ISSUE_RECEIVED: 'issue_received',
   ISSUE_VERIFIED: 'issue_verified',
   ISSUE_ASSIGNED: 'issue_assigned',
   WORK_STARTED: 'work_started',
   ISSUE_RESOLVED: 'issue_resolved',
+  ISSUE_REOPENED: 'issue_reopened',
+  ISSUE_ESCALATED: 'issue_escalated',
   NEARBY_ISSUE: 'nearby_issue',
   NEED_VERIFICATION: 'need_verification',
+  CITIZEN_VERIFY: 'citizen_verify',
   COMMENT_REPLY: 'comment_reply',
   BADGE_EARNED: 'badge_earned',
 };
@@ -99,7 +107,9 @@ export const STATUS_LABELS = {
   [IssueStatus.COMMUNITY_VERIFIED]: 'Community Verified',
   [IssueStatus.ASSIGNED]: 'Assigned',
   [IssueStatus.IN_PROGRESS]: 'In Progress',
+  [IssueStatus.PAUSED]: 'Paused',
   [IssueStatus.COMPLETED]: 'Completed',
   [IssueStatus.AI_VERIFIED]: 'AI Verified',
   [IssueStatus.REJECTED]: 'Rejected',
+  [IssueStatus.ESCALATED]: 'Escalated',
 };

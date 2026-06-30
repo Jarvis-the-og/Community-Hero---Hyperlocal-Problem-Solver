@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { authenticate } from '../middleware/index.js';
+import { authenticate, requireRole } from '../middleware/index.js';
 import * as analyticsController from '../controllers/analyticsController.js';
 
 const router = Router();
 
-router.get('/', authenticate, analyticsController.getStats);
+router.get('/', authenticate, requireRole('authority', 'admin', 'department'), analyticsController.getStats);
 
 export default router;

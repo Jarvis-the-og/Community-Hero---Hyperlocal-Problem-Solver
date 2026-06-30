@@ -189,8 +189,8 @@ export async function withGovernedRequest({
   return task;
 }
 
-export function buildGeminiCacheKey(operation, payload) {
-  return createCacheKey(`gemini:${operation}`, payload);
+export function buildAICacheKey(operation, payload) {
+  return createCacheKey(`ai:${operation}`, payload);
 }
 
 export function buildMapsCacheKey(operation, payload) {

@@ -10,10 +10,11 @@ import { StatCard } from '@/components/dashboard/StatCard';
 import { StatsSkeleton } from '@/components/ui/skeleton';
 import { ErrorState } from '@/components/ui/empty-state';
 import { AlertTriangle, Clock, CheckCircle, Eye, LogIn } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default function DashboardPage() {
-  const { token, user, signIn } = useAuth();
+  const { token, user } = useAuth();
   const { loading: authLoading, authorized } = useRoleGuard('authority', 'admin');
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +57,9 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 py-8 text-center glass-card p-12">
         <LogIn className="w-12 h-12 text-muted mx-auto mb-3" />
         <p className="text-muted mb-4">Sign in with authority access to view the dashboard.</p>
-        <Button onClick={signIn}>Sign In</Button>
+        <Link href="/auth">
+          <Button>Go to Sign In</Button>
+        </Link>
       </div>
     );
   }

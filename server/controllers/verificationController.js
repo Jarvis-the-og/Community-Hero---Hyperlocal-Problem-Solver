@@ -7,6 +7,7 @@ import {
   addPoints,
 } from '../services/issueService.js';
 import { NotificationAgent } from '../services/agents/NotificationAgent.js';
+import { GamificationService } from '../services/gamificationService.js';
 import { uploadMedia } from '../services/issueService.js';
 import { IssueStatus, VerificationStatus, PointAction } from '@community-hero/shared/enums/index.js';
 
@@ -61,7 +62,7 @@ export async function submitVerification(req, res, next) {
     }
 
     await updateIssue(req.params.issueId, updates);
-    await addPoints(req.user.uid, PointAction.VERIFY);
+    await GamificationService.awardPointsWithBadges(req.user.uid, PointAction.VERIFY);
 
     res.status(201).json({ verification, verificationScore });
   } catch (error) {

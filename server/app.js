@@ -21,6 +21,10 @@ import leaderboardRoutes from './routes/leaderboardRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import departmentRoutes from './routes/departmentRoutes.js';
+import workerRoutes from './routes/workerRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import { startEscalationScheduler } from './services/escalationService.js';
 
 validateConfig();
 initializeFirebase();
@@ -56,8 +60,13 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/department', departmentRoutes);
+app.use('/api/worker', workerRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use(errorHandler);
+
+startEscalationScheduler();
 
 app.listen(config.port, () => {
   console.log(`Community Hero API running on http://localhost:${config.port}`);

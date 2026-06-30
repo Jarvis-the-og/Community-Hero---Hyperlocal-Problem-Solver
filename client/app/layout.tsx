@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Community Hero | AI-Powered Hyperlocal Problem Solver',
-  description: 'Report, verify, and track local community issues with AI-powered civic engagement.',
+  title: 'Community Hero | Pilot Deployment for Kolkata Municipal Corporation (KMC)',
+  description: 'Report, verify, and track local community issues with AI-powered civic engagement. Pilot deployment for Kolkata Municipal Corporation.',
 };
 
 export default function RootLayout({

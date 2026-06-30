@@ -13,6 +13,7 @@ import { NAV_ITEMS, AUTHORITY_NAV, DEPARTMENT_NAV, WORKER_NAV } from '@/constant
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useDeployment } from '@/hooks/useDeployment';
 
 const iconMap: Record<string, React.ElementType> = {
   Home, Map, Plus, List, Trophy, LayoutDashboard, BarChart3, Building, Building2, HardHat,
@@ -20,21 +21,9 @@ const iconMap: Record<string, React.ElementType> = {
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, signIn, signOut, loading } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
-
-  const handleSignIn = async () => {
-    if (signingIn) return;
-    setSigningIn(true);
-    try {
-      await signIn();
-    } catch (error: any) {
-      console.error('Sign in error:', error?.message);
-    } finally {
-      setSigningIn(false);
-    }
-  };
+  const deploy = useDeployment();
 
   const isAuthority = user?.role === 'authority' || user?.role === 'admin';
   const isDepartment = user?.role === 'department';
@@ -46,7 +35,6 @@ export function Navbar() {
   else if (isWorker) roleNav = WORKER_NAV;
 
   const navItems = isWorker ? WORKER_NAV : [...NAV_ITEMS, ...roleNav];
-
   return (
     <header className="sticky top-0 z-50 glass border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -55,9 +43,14 @@ export function Navbar() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
               <Shield className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg hidden sm:block">
-              Community <span className="gradient-text">Hero</span>
-            </span>
+            <div className="hidden sm:block">
+              <span className="font-bold text-lg">
+                Community <span className="gradient-text">Hero</span>
+              </span>
+              <span className="text-[10px] uppercase tracking-wider text-muted font-medium block leading-none">
+                Pilot • {deploy.authorityShortName}
+              </span>
+            </div>
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -98,10 +91,12 @@ export function Navbar() {
                   </Button>
                 </div>
               ) : (
-                <Button onClick={handleSignIn} size="sm" disabled={signingIn}>
-                  <LogIn className="w-4 h-4" />
-                  {signingIn ? 'Signing in...' : 'Sign In'}
-                </Button>
+                <Link href="/auth">
+                  <Button size="sm">
+                    <LogIn className="w-4 h-4" />
+                    Sign In
+                  </Button>
+                </Link>
               )
             )}
 

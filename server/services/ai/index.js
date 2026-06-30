@@ -5,7 +5,7 @@
  */
 import Groq from 'groq-sdk';
 import { config } from '../../config/index.js';
-import { buildGeminiCacheKey, hashBuffer, withGovernedRequest } from '../governance/index.js';
+import { buildAICacheKey, hashBuffer, withGovernedRequest } from '../governance/index.js';
 
 let groqClient = null;
 
@@ -21,7 +21,7 @@ const TEXT_CACHE_TTL_MS = 5 * 60 * 1000;
 const IMAGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export function getGroqClient() {
-  if (!config.flags.enableGemini) return null;
+  if (!config.flags.enableAI) return null;
   if (groqClient) return groqClient;
   if (!config.groqApiKey) throw new Error('GROQ_API_KEY not configured');
   groqClient = new Groq({ apiKey: config.groqApiKey });
@@ -34,12 +34,12 @@ export function getModel() {
 }
 
 export async function generateText(prompt, options = {}) {
-  if (!config.flags.enableGemini) throw new Error('AI feature disabled');
+  if (!config.flags.enableAI) throw new Error('AI feature disabled');
 
-  const cacheKey = buildGeminiCacheKey('text', { prompt, json: Boolean(options.json) });
+  const cacheKey = buildAICacheKey('text', { prompt, json: Boolean(options.json) });
 
   return withGovernedRequest({
-    api: 'gemini',
+    api: 'ai',
     operation: 'text',
     cacheKey,
     cacheTtlMs: options.cacheTtlMs ?? TEXT_CACHE_TTL_MS,
@@ -72,13 +72,13 @@ export async function generateText(prompt, options = {}) {
 }
 
 export async function generateFromImage(prompt, imageData, mimeType = 'image/jpeg', options = {}) {
-  if (!config.flags.enableGemini) throw new Error('AI feature disabled');
+  if (!config.flags.enableAI) throw new Error('AI feature disabled');
 
   const imageHash = hashBuffer(Buffer.from(imageData, 'base64'));
-  const cacheKey = buildGeminiCacheKey('image', { prompt, imageHash, mimeType });
+  const cacheKey = buildAICacheKey('image', { prompt, imageHash, mimeType });
 
   return withGovernedRequest({
-    api: 'gemini',
+    api: 'ai',
     operation: 'image',
     cacheKey,
     cacheTtlMs: options.cacheTtlMs ?? IMAGE_CACHE_TTL_MS,
@@ -113,15 +113,15 @@ export async function generateFromImage(prompt, imageData, mimeType = 'image/jpe
 }
 
 export async function generateFromImages(prompt, images, options = {}) {
-  if (!config.flags.enableGemini) throw new Error('AI feature disabled');
+  if (!config.flags.enableAI) throw new Error('AI feature disabled');
 
-  const cacheKey = buildGeminiCacheKey('images', {
+  const cacheKey = buildAICacheKey('images', {
     prompt,
     hashes: images.map((img) => hashBuffer(img.buffer)),
   });
 
   return withGovernedRequest({
-    api: 'gemini',
+    api: 'ai',
     operation: 'images',
     cacheKey,
     cacheTtlMs: options.cacheTtlMs ?? IMAGE_CACHE_TTL_MS,

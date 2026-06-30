@@ -16,8 +16,8 @@ import { analyzeLocation } from '../services/agents/LocationAgent.js';
 import { findDuplicates } from '../services/agents/DuplicateAgent.js';
 import { calculatePriority } from '../services/agents/PriorityAgent.js';
 import { NotificationAgent } from '../services/agents/NotificationAgent.js';
-import { generateText } from '../services/gemini/index.js';
-import { SUMMARY_PROMPT } from '../services/gemini/prompts/index.js';
+import { generateText } from '../services/ai/index.js';
+import { SUMMARY_PROMPT } from '../services/ai/prompts/index.js';
 import { IssueStatus, PointAction } from '@community-hero/shared/enums/index.js';
 
 export async function getAllIssues(req, res, next) {

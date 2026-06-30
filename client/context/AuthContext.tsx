@@ -3,8 +3,13 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
+  setPersistence,
+  browserLocalPersistence,
+  updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
 import { getFirebaseAuth, getGoogleProvider, isFirebaseConfigured } from '@/lib/firebase';
@@ -16,6 +21,8 @@ interface AuthContextType {
   loading: boolean;
   token: string | null;
   signIn: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
+  registerWithEmail: (email: string, password: string, displayName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   isDemo: boolean;
 }
@@ -36,54 +43,66 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { user: profile } = await api.getProfile(idToken);
       setUser(profile);
-    } catch {
-      const { user: profile } = await api.syncUser(
-        { displayName: fbUser.displayName || 'User', photoURL: fbUser.photoURL || undefined },
-        idToken
-      );
-      setUser(profile);
+    } catch (e: any) {
+      try {
+        const { user: profile } = await api.syncUser(
+          { displayName: fbUser.displayName || 'User', photoURL: fbUser.photoURL || undefined },
+          idToken
+        );
+        setUser(profile);
+      } catch (innerError) {
+        // Token is likely invalid or revoked on the backend
+        setUser(null);
+        const auth = getFirebaseAuth();
+        if (auth) await firebaseSignOut(auth);
+      }
     }
   }, []);
 
-  // Debounced version — collapses rapid auth state fires into one request
-  const debouncedSyncProfile = useCallback((fbUser: FirebaseUser) => {
-    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => syncProfile(fbUser), 300);
-  }, [syncProfile]);
+  const ensurePersistence = useCallback(async (auth: ReturnType<typeof getFirebaseAuth>) => {
+    if (!auth) return;
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+    } catch {
+      // Local persistence is best-effort; auth still functions without it.
+    }
+  }, []);
+
+  // We don't debounce here to avoid race conditions with setLoading(false).
+  // onAuthStateChanged shouldn't fire rapidly enough to cause issues in normal flows.
 
   useEffect(() => {
-    if (isDemo) {
-      setLoading(false);
-      return;
-    }
-
     const auth = getFirebaseAuth();
     if (!auth) {
       setLoading(false);
       return;
     }
 
+    void ensurePersistence(auth);
+
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        await debouncedSyncProfile(fbUser);
+        try {
+          await syncProfile(fbUser);
+        } finally {
+          setLoading(false);
+        }
       } else {
         setUser(null);
         setToken(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return unsubscribe;
-  }, [isDemo, debouncedSyncProfile]);
+  }, [isDemo, syncProfile, ensurePersistence]);
 
   const signIn = async () => {
-    if (isDemo) {
-      throw new Error('Firebase is not configured. Add environment variables to enable sign-in.');
-    }
     const auth = getFirebaseAuth();
     if (!auth) throw new Error('Firebase Auth unavailable');
     try {
+      await ensurePersistence(auth);
       const result = await signInWithPopup(auth, getGoogleProvider());
       await syncProfile(result.user);
     } catch (error: any) {
@@ -95,6 +114,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithEmail = async (email: string, password: string) => {
+    const auth = getFirebaseAuth();
+    if (!auth) throw new Error('Firebase Auth unavailable');
+    await ensurePersistence(auth);
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    await syncProfile(result.user);
+  };
+
+  const registerWithEmail = async (email: string, password: string, displayName?: string) => {
+    const auth = getFirebaseAuth();
+    if (!auth) throw new Error('Firebase Auth unavailable');
+    await ensurePersistence(auth);
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    if (displayName && result.user) {
+      await updateProfile(result.user, { displayName });
+    }
+    await syncProfile(result.user);
+  };
+
   const signOut = async () => {
     const auth = getFirebaseAuth();
     if (auth) await firebaseSignOut(auth);
@@ -104,7 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, loading, token, signIn, signOut, isDemo }}>
+    <AuthContext.Provider
+      value={{ user, firebaseUser, loading, token, signIn, signInWithEmail, registerWithEmail, signOut, isDemo }}
+    >
       {children}
     </AuthContext.Provider>
   );

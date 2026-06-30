@@ -10,11 +10,18 @@ import { useNearbyIssues } from '@/hooks/useIssues';
 import { Select } from '@/components/ui/input';
 import { CATEGORY_LABELS, ISSUE_CATEGORIES } from '@/constants';
 import { IssueCardSkeleton } from '@/components/ui/skeleton';
+import { useDeployment } from '@/hooks/useDeployment';
 
 export default function MapPage() {
+  const deploy = useDeployment();
   const { lat, lng, hasLocation, loading: geoLoading, error: geoError, refresh } =
     useGeolocation();
-  const { issues, loading } = useNearbyIssues(lat, lng, 10, hasLocation);
+  // If no location, fetch a larger area around the city center (or all issues)
+  const queryLat = hasLocation ? lat : deploy.mapCenter.lat;
+  const queryLng = hasLocation ? lng : deploy.mapCenter.lng;
+  const queryRadius = hasLocation ? 5 : 20; // 20km for whole city
+
+  const { issues, loading } = useNearbyIssues(queryLat, queryLng, queryRadius, true);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
 
@@ -55,17 +62,25 @@ export default function MapPage() {
                 </div>
               </div>
             ) : !hasLocation ? (
-              <div className="glass-card h-[500px] flex items-center justify-center text-muted">
-                <div className="text-center max-w-sm px-6">
-                  <p className="font-medium">Live location is off</p>
-                  <p className="text-sm mt-1 mb-4">
-                    Click below to let the browser share your current position and load nearby issues.
-                  </p>
+              <div className="relative">
+                <IssueMap
+                  issues={filtered}
+                  center={deploy.mapCenter}
+                  zoom={deploy.defaultZoom}
+                  height="500px"
+                  onIssueClick={(issue) => setSelectedIssue(issue.id)}
+                  showUserLocation={false}
+                />
+                <div className="absolute top-4 left-4 right-4 z-10 glass-card p-4 rounded-xl flex items-center justify-between border border-white/20 shadow-lg">
+                  <div>
+                    <p className="font-semibold text-sm">Showing issues across {deploy.city}</p>
+                    <p className="text-xs text-muted mt-1">Live location is off.</p>
+                  </div>
                   <button
                     onClick={refresh}
-                    className="px-4 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
+                    className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors"
                   >
-                    Use my live location
+                    Use live location
                   </button>
                 </div>
               </div>
@@ -73,8 +88,10 @@ export default function MapPage() {
               <IssueMap
                 issues={filtered}
                 center={{ lat, lng }}
+                zoom={14}
                 height="500px"
                 onIssueClick={(issue) => setSelectedIssue(issue.id)}
+                showUserLocation={true}
               />
             )}
 

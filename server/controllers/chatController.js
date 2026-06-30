@@ -1,5 +1,5 @@
-import { generateText } from '../services/gemini/index.js';
-import { CHAT_PROMPT } from '../services/gemini/prompts/index.js';
+import { generateText } from '../services/ai/index.js';
+import { CHAT_PROMPT } from '../services/ai/prompts/index.js';
 import { getIssues, getNearbyIssues, getIssueById } from '../services/issueService.js';
 
 function buildFallbackReply(message) {
@@ -43,7 +43,7 @@ export async function chat(req, res, next) {
         return res.json({ reply });
       }
     } catch (aiError) {
-      console.warn('Gemini chat fallback:', aiError.message);
+      console.warn('AI chat fallback:', aiError.message);
     }
 
     return res.json({ reply: buildFallbackReply(message) });

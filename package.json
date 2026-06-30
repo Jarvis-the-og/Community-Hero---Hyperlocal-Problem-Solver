@@ -14,7 +14,8 @@
     "dev:server": "npm run dev --workspace=server",
     "build": "npm run build --workspace=client",
     "start": "npm run start --workspace=server",
-    "install:all": "npm install"
+    "install:all": "npm install",
+    "seed": "node server/scripts/seedProductionDemoData.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

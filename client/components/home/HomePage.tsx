@@ -12,6 +12,7 @@ import { useNearbyIssues } from '@/hooks/useIssues';
 import { useEffect, useState } from 'react';
 import { api, Analytics } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { useDeployment } from '@/hooks/useDeployment';
 import {
   OnboardingModal,
   getStoredLocality,
@@ -20,37 +21,37 @@ import {
 } from '@/components/onboarding/OnboardingModal';
 
 export function HomePage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const deploy = useDeployment();
   const [locality, setLocality] = useState<UserLocality | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
 
-  // On mount, check if locality already stored
   useEffect(() => {
     const stored = getStoredLocality();
     if (stored) {
-      setLocality(stored);
+      setLocality(stored === 'skipped' ? null : stored);
     } else {
       setShowOnboarding(true);
     }
   }, []);
 
-  // Fetch nearby issues at 2km using locality coords
   const { issues, loading } = useNearbyIssues(
     locality?.lat ?? 0,
     locality?.lng ?? 0,
-    2,
+    deploy.defaultRadiusKm,
     !!locality
   );
 
   useEffect(() => {
     if (!token) return;
+    if (!user || !['admin', 'authority', 'department'].includes(user.role)) return;
     api.getAnalytics(token)
       .then(({ analytics: data }) => setAnalytics(data))
-      .catch(console.error);
-  }, [token]);
+      .catch(() => {});
+  }, [token, user]);
 
-  const handleOnboardingComplete = (loc: UserLocality) => {
+  const handleOnboardingComplete = (loc: UserLocality | null) => {
     setLocality(loc);
     setShowOnboarding(false);
   };
@@ -69,9 +70,11 @@ export function HomePage() {
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
             Your Community, <span className="gradient-text">Powered by AI</span>
           </h1>
+          <p className="text-muted text-sm mb-1">
+            Pilot deployment for {deploy.authorityName} ({deploy.authorityShortName})
+          </p>
           <p className="text-muted text-lg max-w-2xl mx-auto mb-8">
-            Report local issues, verify community problems, and track resolutions —
-            all powered by AI and Google Maps.
+            Report local issues, verify community problems, and track resolutions in {deploy.city}.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Link href="/report">
@@ -108,11 +111,18 @@ export function HomePage() {
           <section className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div>
-                <h2 className="text-xl font-semibold">Nearby Issues</h2>
-                {locality && (
+                <h2 className="text-xl font-semibold">
+                  {locality ? 'Nearby Issues' : 'Public Issues'}
+                </h2>
+                {locality ? (
                   <p className="text-xs text-muted mt-0.5 flex items-center gap-1">
                     <MapPin className="w-3 h-3" />
-                    {locality.address} · 2 km radius
+                    {locality.address} · {deploy.defaultRadiusKm} km radius
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted mt-0.5 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    Showing public issues across {deploy.city}
                   </p>
                 )}
               </div>
@@ -121,7 +131,7 @@ export function HomePage() {
                   onClick={() => { clearLocality(); setShowOnboarding(true); setLocality(null); }}
                   className="text-xs text-primary/70 hover:text-primary flex items-center gap-1 underline underline-offset-2"
                 >
-                  <LocateFixed className="w-3 h-3" /> Change locality
+                  <LocateFixed className="w-3 h-3" /> {locality ? 'Change locality' : 'Set locality'}
                 </button>
                 <Link href="/map" className="text-sm text-primary hover:underline">
                   View all on map
@@ -138,7 +148,9 @@ export function HomePage() {
                     ))
                   : (
                     <div className="glass-card p-8 text-center text-muted">
-                      No issues found within 2 km of your locality. Be the first to report one!
+                      {locality 
+                        ? `No issues found within ${deploy.defaultRadiusKm} km of your locality. Be the first to report one!`
+                        : 'No public issues found. Be the first to report one!'}
                     </div>
                   )}
             </div>

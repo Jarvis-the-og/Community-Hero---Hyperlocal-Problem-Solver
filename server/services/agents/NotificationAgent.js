@@ -1,6 +1,7 @@
 import { getDb } from '../firebase/index.js';
 import { inMemoryStore } from '../../utils/inMemoryStore.js';
 import { NotificationType } from '@community-hero/shared/enums/index.js';
+import { getUsersByRole } from '../issueService.js';
 
 async function createNotification(userId, type, title, message, issueId = null) {
   const notification = {
@@ -22,17 +23,46 @@ async function createNotification(userId, type, title, message, issueId = null) 
   return inMemoryStore.addNotification(notification);
 }
 
-export async function notifyIssueReported(issue) {
+async function notifyRoleUsers(roles, type, title, message, issueId = null) {
   const notifications = [];
+  for (const role of roles) {
+    const users = await getUsersByRole(role);
+    for (const user of users) {
+      notifications.push(await createNotification(user.id, type, title, message, issueId));
+    }
+  }
+  return notifications;
+}
 
-  const authorityMsg = await createNotification(
-    'authority',
-    NotificationType.NEARBY_ISSUE,
-    'New Issue Reported',
-    `"${issue.title}" reported near ${issue.location?.address || 'your area'}`,
-    issue.id
-  );
-  notifications.push(authorityMsg);
+async function notifyDepartmentUsers(department, type, title, message, issueId = null) {
+  const users = await getUsersByRole('department');
+  const deptUsers = users.filter((u) => u.department === department);
+  const notifications = [];
+  for (const user of deptUsers) {
+    notifications.push(await createNotification(user.id, type, title, message, issueId));
+  }
+  if (!notifications.length) {
+    await notifyRoleUsers(['authority', 'admin'], type, title, message, issueId);
+  }
+  return notifications;
+}
+
+export async function notifyIssueReported(issue) {
+  const title = 'New Issue Reported';
+  const message = `"${issue.title}" reported near ${issue.location?.address || 'your area'}`;
+
+  const notifications = await notifyRoleUsers(['authority', 'admin'], NotificationType.ISSUE_RECEIVED, title, message, issue.id);
+
+  if (issue.department) {
+    const deptNotifications = await notifyDepartmentUsers(
+      issue.department,
+      NotificationType.ISSUE_RECEIVED,
+      title,
+      `[${issue.department}] ${message}`,
+      issue.id
+    );
+    notifications.push(...deptNotifications);
+  }
 
   return notifications;
 }
@@ -99,13 +129,66 @@ export async function notifyWorkStarted(issue) {
 }
 
 export async function notifyIssueResolved(issue) {
-  return createNotification(
+  await createNotification(
     issue.reporterId,
     NotificationType.ISSUE_RESOLVED,
     'Issue Resolved',
-    `"${issue.title}" has been marked as resolved!`,
+    `"${issue.title}" has been marked as resolved. Please confirm if the issue is fixed.`,
     issue.id
   );
+
+  return createNotification(
+    issue.reporterId,
+    NotificationType.CITIZEN_VERIFY,
+    'Confirm Resolution',
+    `Please verify whether "${issue.title}" has been properly resolved.`,
+    issue.id
+  );
+}
+
+export async function notifyIssueReopened(issue) {
+  const notifications = [
+    await createNotification(
+      issue.reporterId,
+      NotificationType.ISSUE_REOPENED,
+      'Issue Reopened',
+      `"${issue.title}" has been reopened based on your feedback.`,
+      issue.id
+    ),
+  ];
+
+  if (issue.department) {
+    const deptNotifications = await notifyDepartmentUsers(
+      issue.department,
+      NotificationType.ISSUE_REOPENED,
+      'Issue Reopened',
+      `"${issue.title}" was reopened by the citizen — requires attention.`,
+      issue.id
+    );
+    notifications.push(...deptNotifications);
+  }
+
+  return notifications;
+}
+
+export async function notifyIssueEscalated(issue) {
+  const title = 'Issue Escalated';
+  const message = `"${issue.title}" has exceeded SLA and been escalated.`;
+
+  const notifications = await notifyRoleUsers(['authority', 'admin'], NotificationType.ISSUE_ESCALATED, title, message, issue.id);
+
+  if (issue.department) {
+    const deptNotifications = await notifyDepartmentUsers(
+      issue.department,
+      NotificationType.ISSUE_ESCALATED,
+      title,
+      message,
+      issue.id
+    );
+    notifications.push(...deptNotifications);
+  }
+
+  return notifications;
 }
 
 export async function notifyBadgeEarned(userId, badgeName) {
@@ -125,5 +208,7 @@ export const NotificationAgent = {
   notifyIssueAssigned,
   notifyWorkStarted,
   notifyIssueResolved,
+  notifyIssueReopened,
+  notifyIssueEscalated,
   notifyBadgeEarned,
 };

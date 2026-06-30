@@ -9,7 +9,7 @@ Return ONLY valid JSON with this exact structure:
   "title": "A descriptive, human-sounding issue title (max 80 chars, e.g., 'Deep pothole on Main St causing cars to swerve')",
   "description": "A detailed, natural-language description of the issue. Explain what you see, the potential risks to the community, and why it needs fixing.",
   "severity": "one of: critical, medium, low",
-  "department": "suggested department (e.g., Public Works, Sanitation, Water Board, Electrical)",
+  "department": "one of: Road Department, Water Department, Garbage Department, Electricity Department, Public Works, Health Department",
   "hazards": ["array of specific hazards identified, e.g., 'Tire damage', 'Pedestrian tripping'"],
   "confidence": 0.0 to 1.0
 }

@@ -1,5 +1,5 @@
-import { generateFromImage, parseJsonResponse } from '../gemini/index.js';
-import { VISION_PROMPT } from '../gemini/prompts/index.js';
+import { generateFromImage, parseJsonResponse } from '../ai/index.js';
+import { VISION_PROMPT } from '../ai/prompts/index.js';
 import { IssueCategory, Severity } from '@community-hero/shared/enums/index.js';
 
 export async function analyzeImage(imageBuffer, mimeType = 'image/jpeg') {

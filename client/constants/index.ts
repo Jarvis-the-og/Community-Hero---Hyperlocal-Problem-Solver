@@ -1,3 +1,5 @@
+import { deployment } from '../hooks/useDeployment';
+
 export const CATEGORY_LABELS: Record<string, string> = {
   pothole: 'Pothole',
   garbage: 'Garbage',
@@ -8,6 +10,9 @@ export const CATEGORY_LABELS: Record<string, string> = {
   road_damage: 'Road Damage',
   illegal_dumping: 'Illegal Dumping',
   electrical_hazard: 'Electrical Hazard',
+  traffic_signal: 'Traffic Signal',
+  open_manhole: 'Open Manhole',
+  waterlogging: 'Waterlogging',
   other: 'Other',
 };
 
@@ -24,14 +29,7 @@ export const STATUS_LABELS: Record<string, string> = {
   escalated: 'Escalated',
 };
 
-export const DEPARTMENTS = [
-  'Road Department',
-  'Water Department',
-  'Garbage Department',
-  'Electricity Department',
-  'Public Works',
-  'Health Department',
-];
+export const DEPARTMENTS = deployment.departments;
 
 export const BADGE_LABELS: Record<string, string> = {
   community_hero: 'Community Hero',
@@ -39,11 +37,12 @@ export const BADGE_LABELS: Record<string, string> = {
   problem_solver: 'Problem Solver',
   early_reporter: 'Early Reporter',
   verification_champion: 'Verification Champion',
+  field_responder: 'Field Responder',
 };
 
 export const ISSUE_CATEGORIES = Object.keys(CATEGORY_LABELS);
 
-export const DEFAULT_LOCATION = { lat: 28.6139, lng: 77.2090 };
+export const DEFAULT_LOCATION = deployment.mapCenter;
 
 export const NAV_ITEMS = [
   { href: '/', label: 'Home', icon: 'Home' },

@@ -15,7 +15,7 @@ import { CATEGORY_LABELS, STATUS_LABELS } from '@/constants';
 
 export default function WorkerPage() {
   const { token } = useAuth();
-  const { authorized } = useRoleGuard('worker');
+  const { authorized, loading: authLoading } = useRoleGuard('worker');
   const [data, setData] = useState<WorkerTasksData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function WorkerPage() {
     if (authorized && token) load();
   }, [authorized, token]);
 
-  if (loading) return <div className="max-w-lg mx-auto px-4 py-6"><StatsSkeleton /></div>;
+  if (authLoading || loading) return <div className="max-w-lg mx-auto px-4 py-6"><StatsSkeleton /></div>;
   if (!authorized) return null;
   if (error) return <div className="max-w-lg mx-auto px-4 py-6"><ErrorState message={error} onRetry={load} /></div>;
   if (!data) return null;

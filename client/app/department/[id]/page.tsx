@@ -132,12 +132,18 @@ export default function DepartmentIssuePage({ params }: { params: Promise<{ id: 
               )}
               {['assigned', 'community_verified'].includes(issue.status) && (
                 <div className="flex gap-2 items-center flex-wrap">
-                  <Input
-                    placeholder="Worker ID"
+                  <select
                     value={workerId}
                     onChange={(e) => setWorkerId(e.target.value)}
-                    className="w-40 h-8 text-xs"
-                  />
+                    className="h-8 text-xs bg-secondary border border-white/10 rounded px-2 min-w-[140px]"
+                  >
+                    <option value="">Select Worker...</option>
+                    {dashboard?.workers?.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.displayName}
+                      </option>
+                    ))}
+                  </select>
                   <Button
                     size="sm"
                     variant="secondary"

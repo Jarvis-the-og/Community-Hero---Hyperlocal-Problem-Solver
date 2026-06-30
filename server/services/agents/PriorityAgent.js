@@ -1,5 +1,5 @@
-import { generateText, parseJsonResponse } from '../gemini/index.js';
-import { PRIORITY_PROMPT } from '../gemini/prompts/index.js';
+import { generateText, parseJsonResponse } from '../ai/index.js';
+import { PRIORITY_PROMPT } from '../ai/prompts/index.js';
 import { Priority, Severity } from '@community-hero/shared/enums/index.js';
 
 const SEVERITY_WEIGHTS = { critical: 40, medium: 25, low: 10 };

@@ -5,13 +5,17 @@ import { runWithContext, getRequestContext } from '../utils/requestContext.js';
 
 const DEMO_USER = { uid: 'demo-user', email: 'demo@communityhero.app', name: 'Demo User' };
 
+function getDefaultDemoUser() {
+  return DEMO_USER;
+}
+
 export async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   const useDemo = isDemoMode() || (!isFirebaseConfigured() && !isFirebaseAdminReady());
 
   if (!authHeader?.startsWith('Bearer ')) {
     if (useDemo) {
-      req.user = DEMO_USER;
+      req.user = { uid: 'demo-user', email: 'demo@communityhero.app', name: 'Demo User' };
       return runWithContext(
         { ...getRequestContext(), user: req.user, requestIp: req.ip, requestPath: req.originalUrl },
         () => next()
@@ -46,7 +50,7 @@ export async function optionalAuthenticate(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
-    req.user = null;
+    req.user = isDemoMode() ? getDefaultDemoUser() : null;
     return next();
   }
 
@@ -68,16 +72,27 @@ export async function optionalAuthenticate(req, res, next) {
 
 export function requireRole(...roles) {
   return async (req, res, next) => {
-    const { getUser } = await import('../services/issueService.js');
-    const user = await getUser(req.user.uid);
+    const { getUser, getUserByEmail } = await import('../services/issueService.js');
+    const user = (await getUser(req.user.uid)) || (await getUserByEmail(req.user.email));
 
     if (user && roles.includes(user.role)) {
       req.userProfile = user;
       return next();
     }
 
-    if (isDemoMode() && req.user.uid === 'demo-authority' && roles.includes('authority')) {
-      return next();
+    if (isDemoMode()) {
+      if (req.user.uid === 'demo-authority' && (roles.includes('authority') || roles.includes('admin'))) {
+        req.userProfile = { id: 'demo-authority', role: 'authority', displayName: 'City Authority' };
+        return next();
+      }
+      if (req.user.uid === 'demo-department' && roles.includes('department')) {
+        req.userProfile = { id: 'demo-department', role: 'department', department: 'Public Works', displayName: 'Public Works Officer' };
+        return next();
+      }
+      if (req.user.uid === 'demo-worker' && roles.includes('worker')) {
+        req.userProfile = { id: 'demo-worker', role: 'worker', department: 'Public Works', displayName: 'Field Worker' };
+        return next();
+      }
     }
 
     return res.status(403).json({ error: 'Insufficient permissions' });
