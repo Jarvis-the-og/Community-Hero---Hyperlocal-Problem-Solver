@@ -1,0 +1,38 @@
+# ─── Version control ─────────────────────────────────────────────
+.git
+.gitignore
+
+# ─── Environment / secrets ───────────────────────────────────────
+# Never bake secrets into the image. All env vars come from
+# Cloud Run service configuration or Secret Manager at runtime.
+.env
+.env.*
+serviceAccountKey.json
+*.pem
+*.key
+
+# ─── Client workspace (not needed in the backend image) ──────────
+client/
+
+# ─── Logs ────────────────────────────────────────────────────────
+# Cloud Run captures stdout/stderr via Cloud Logging.
+# The file-based logger in governance/logger.js silently falls back
+# to console.log when the filesystem write fails, so this is safe.
+logs/
+*.log
+
+# ─── Local node_modules (always rebuilt inside Docker) ───────────
+node_modules/
+server/node_modules/
+shared/node_modules/
+
+# ─── Dev / IDE ────────────────────────────────────────────────────
+.vscode/
+.kiro/
+
+# ─── Seed / migration scripts (not needed at runtime) ────────────
+server/scripts/
+
+# ─── OS noise ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
