@@ -50,9 +50,23 @@ export function validateConfig() {
   if (config.flags.enableAI && !config.groqApiKey) warnings.push('GROQ_API_KEY');
   if (config.flags.enableMaps && !process.env.GOOGLE_MAPS_API_KEY) warnings.push('GOOGLE_MAPS_API_KEY');
   if (config.flags.enableFirebase && !config.firebase.projectId) warnings.push('FIREBASE_PROJECT_ID');
-  if (config.flags.enableFirebase && (!config.firebase.clientEmail || !config.firebase.privateKey)) {
-    warnings.push('FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY (Admin SDK)');
+
+  // Only warn about missing explicit credentials when ADC is also unavailable.
+  // On Cloud Run the attached service account provides ADC automatically, so
+  // FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY are not required in that env.
+  if (
+    config.flags.enableFirebase &&
+    !config.firebase.clientEmail &&
+    !config.firebase.privateKey &&
+    !process.env.FIREBASE_SERVICE_ACCOUNT_JSON &&
+    !process.env.GOOGLE_APPLICATION_CREDENTIALS
+  ) {
+    console.info(
+      'Firebase Admin: no explicit credentials set — will attempt Application Default Credentials (ADC). ' +
+      'On Cloud Run this works automatically via the attached service account.'
+    );
   }
+
   if (warnings.length > 0) {
     console.warn(`Warning: Missing env vars: ${warnings.join(', ')}. Some features may not work.`);
   }
