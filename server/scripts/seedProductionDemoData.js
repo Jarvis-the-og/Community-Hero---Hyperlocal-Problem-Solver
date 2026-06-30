@@ -1,6 +1,13 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initializeFirebase, getDb, getAuth } from '../services/firebase/index.js';
+import { buildWardAwareIssue, getWardCatalog } from '../services/wardCatalog.js';
 
-await initializeFirebase();
+const isDirectExecution = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectExecution) {
+  await initializeFirebase();
+}
 
 const db = getDb();
 const auth = getAuth();
@@ -15,6 +22,7 @@ if (!auth) {
 
 const now = Date.now();
 const iso = (minutesAgo) => new Date(now - minutesAgo * 60 * 1000).toISOString();
+const wardCatalog = await getWardCatalog();
 
 const demoAccounts = [
   {
@@ -110,7 +118,7 @@ async function ensureAuthAccount(account) {
   return created.uid;
 }
 
-function buildIssue({
+export function buildIssue({
   id,
   title,
   description,
@@ -169,7 +177,7 @@ function buildIssue({
   };
 }
 
-const issueFixtures = [
+export const issueFixtures = [
   buildIssue({
     id: 'issue-pothole-park-street',
     title: 'Large Pothole on Park Street',
@@ -179,7 +187,7 @@ const issueFixtures = [
     priority: 'critical',
     status: 'community_verified',
     department: 'Roads Department',
-    ward: 'Ward 11 – Park Street',
+    ward: 'Ward 63',
     lat: 22.5510,
     lng: 88.3517,
     address: 'Park Street, Kolkata',
@@ -205,7 +213,7 @@ const issueFixtures = [
     priority: 'medium',
     status: 'assigned',
     department: 'Solid Waste Management',
-    ward: 'Ward 15 – Gariahat',
+    ward: 'Ward 68',
     lat: 22.5194,
     lng: 88.3691,
     address: 'Gariahat Market, Kolkata',
@@ -233,7 +241,7 @@ const issueFixtures = [
     priority: 'medium',
     status: 'in_progress',
     department: 'Street Lighting',
-    ward: 'Ward 29 – Salt Lake',
+    ward: 'Ward 31',
     lat: 22.5726,
     lng: 88.4312,
     address: 'Sector V, Salt Lake, Kolkata',
@@ -262,7 +270,7 @@ const issueFixtures = [
     priority: 'critical',
     status: 'escalated',
     department: 'Water Supply Department',
-    ward: 'Ward 12 – Esplanade',
+    ward: 'Ward 46',
     lat: 22.5636,
     lng: 88.3520,
     address: 'Esplanade, Kolkata',
@@ -292,7 +300,7 @@ const issueFixtures = [
     priority: 'critical',
     status: 'ai_verified',
     department: 'Drainage',
-    ward: 'Ward 4 – Shyambazar',
+    ward: 'Ward 10',
     lat: 22.5950,
     lng: 88.3740,
     address: 'Shyambazar, Kolkata',
@@ -319,7 +327,7 @@ const issueFixtures = [
     priority: 'medium',
     status: 'paused',
     department: 'Solid Waste Management',
-    ward: 'Ward 17 – Dhakuria',
+    ward: 'Ward 91',
     lat: 22.5150,
     lng: 88.3940,
     address: 'EM Bypass, Kolkata',
@@ -351,7 +359,7 @@ const issueFixtures = [
     priority: 'low',
     status: 'completed',
     department: 'Parks & Gardens',
-    ward: 'Ward 16 – Jadavpur',
+    ward: 'Ward 102',
     lat: 22.4990,
     lng: 88.3710,
     address: 'Jadavpur, Kolkata',
@@ -383,7 +391,7 @@ const issueFixtures = [
     priority: 'low',
     status: 'completed',
     department: 'Roads Department',
-    ward: 'Ward 8 – College Street',
+    ward: 'Ward 37',
     lat: 22.5770,
     lng: 88.3620,
     address: 'College Street, Kolkata',
@@ -415,7 +423,7 @@ const issueFixtures = [
     priority: 'low',
     status: 'rejected',
     department: 'Public Health',
-    ward: 'Ward 13 – Bhowanipore',
+    ward: 'Ward 71',
     lat: 22.5350,
     lng: 88.3450,
     address: 'Bhowanipore, Kolkata',
@@ -608,7 +616,7 @@ const verifications = [
   },
 ];
 
-async function seed() {
+export async function seed() {
   const resolvedUids = new Map();
   for (const account of demoAccounts) {
     const uid = await ensureAuthAccount(account);
@@ -649,11 +657,14 @@ async function seed() {
     return id;
   };
 
-  const processedIssues = issueFixtures.map(issue => ({
-    ...issue,
-    reporterId: resolveId(issue.reporterId),
-    assignedTo: resolveId(issue.assignedTo)
-  }));
+  const processedIssues = issueFixtures.map((issue) => {
+    const normalizedIssue = buildWardAwareIssue(issue, wardCatalog);
+    return {
+      ...normalizedIssue,
+      reporterId: resolveId(issue.reporterId),
+      assignedTo: resolveId(issue.assignedTo),
+    };
+  });
 
   const processedNotifications = notifications.map(n => ({
     ...n,
@@ -704,4 +715,6 @@ async function seed() {
   );
 }
 
-await seed();
+if (isDirectExecution) {
+  await seed();
+}

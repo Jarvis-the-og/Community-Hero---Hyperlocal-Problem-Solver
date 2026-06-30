@@ -277,6 +277,21 @@ export async function syncUser(req, res, next) {
   }
 }
 
+export async function citizenConfirmResolution(req, res, next) {
+  try {
+    const { confirmed, comment } = req.body;
+    const issue = await getIssueById(req.params.id);
+    if (!issue) return res.status(404).json({ error: 'Issue not found' });
+    const updated = await updateIssue(req.params.id, {
+      citizenConfirmed: confirmed,
+      ...(comment ? { citizenComment: comment } : {}),
+    });
+    res.json({ issue: updated });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getProfile(req, res, next) {
   try {
     let user = await getUser(req.user.uid);

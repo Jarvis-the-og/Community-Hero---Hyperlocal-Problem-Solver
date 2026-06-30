@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle, CheckCircle, Clock, Users, Building2, Sparkles, MapPin,
@@ -25,13 +25,29 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState('');
+  const [boroughFilter, setBoroughFilter] = useState('');
+  const [wardFilter, setWardFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const wardOptions = useMemo(() => {
+    if (!dashboard?.analytics?.wardMetrics) return [];
+    return dashboard.analytics.wardMetrics
+      .map((entry) => entry.ward)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b));
+  }, [dashboard]);
 
   const load = async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const data = await api.getAdminDashboard(token);
+      const data = await api.getAdminDashboard(token, {
+        ward: wardFilter || undefined,
+        borough: boroughFilter || undefined,
+        department: deptFilter || undefined,
+        status: statusFilter || undefined,
+        priority: priorityFilter || undefined,
+      });
       setDashboard(data);
     } catch (e: any) {
       setError(e.message);
@@ -42,7 +58,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (authorized && token) load();
-  }, [authorized, token]);
+  }, [authorized, token, wardFilter, boroughFilter, deptFilter, priorityFilter, statusFilter]);
 
   if (authLoading || loading) return <div className="max-w-7xl mx-auto px-4 py-8"><StatsSkeleton /></div>;
   if (!authorized) return null;
@@ -52,7 +68,10 @@ export default function AdminPage() {
   const { analytics, mapData } = dashboard;
   const filteredMap = mapData.filter((m) => {
     if (deptFilter && m.department !== deptFilter) return false;
+    if (boroughFilter && m.borough !== boroughFilter) return false;
+    if (wardFilter && m.ward !== wardFilter) return false;
     if (priorityFilter && m.priority !== priorityFilter) return false;
+    if (statusFilter && m.status !== statusFilter) return false;
     return true;
   });
 
@@ -121,24 +140,35 @@ export default function AdminPage() {
         <div className="glass-card p-4 mb-8">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <h3 className="font-semibold flex items-center gap-2">
-              <MapPin className="w-4 h-4" /> Live City Map
+              <MapPin className="w-4 h-4" /> KMC Command Centre
             </h3>
             <div className="flex gap-2 flex-wrap">
-              <select
-                value={deptFilter}
-                onChange={(e) => setDeptFilter(e.target.value)}
-                className="bg-secondary text-sm rounded-lg px-2 py-1 border border-white/10"
-              >
+              <select value={wardFilter} onChange={(e) => setWardFilter(e.target.value)} className="bg-secondary text-sm rounded-lg px-2 py-1 border border-white/10">
+                <option value="">All Wards</option>
+                {wardOptions.map((ward) => <option key={ward} value={ward}>{ward}</option>)}
+              </select>
+              <select value={boroughFilter} onChange={(e) => setBoroughFilter(e.target.value)} className="bg-secondary text-sm rounded-lg px-2 py-1 border border-white/10">
+                <option value="">All Boroughs</option>
+                {Array.from(new Set((dashboard.issues || []).map((issue) => (issue as any).borough || (issue as any).location?.borough).filter(Boolean))).map((borough) => (
+                  <option key={borough} value={borough}>{borough}</option>
+                ))}
+              </select>
+              <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="bg-secondary text-sm rounded-lg px-2 py-1 border border-white/10">
                 <option value="">All Departments</option>
                 {Object.keys(analytics.departmentBreakdown || {}).map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
               </select>
-              <select
-                value={priorityFilter}
-                onChange={(e) => setPriorityFilter(e.target.value)}
-                className="bg-secondary text-sm rounded-lg px-2 py-1 border border-white/10"
-              >
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-secondary text-sm rounded-lg px-2 py-1 border border-white/10">
+                <option value="">All Status</option>
+                <option value="reported">Reported</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="community_verified">Community Verified</option>
+                <option value="completed">Completed</option>
+                <option value="escalated">Escalated</option>
+              </select>
+              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="bg-secondary text-sm rounded-lg px-2 py-1 border border-white/10">
                 <option value="">All Priority</option>
                 <option value="critical">Critical</option>
                 <option value="medium">Medium</option>
@@ -158,6 +188,62 @@ export default function AdminPage() {
             <AnalyticsChart data={analytics.wardBreakdown} title="Ward Distribution" />
           )}
         </div>
+
+        <div className="grid md:grid-cols-3 gap-4 mb-8">
+          <div className="glass-card p-4">
+            <p className="text-sm text-muted">Ward Coverage</p>
+            <p className="text-2xl font-semibold">{Object.keys(analytics.wardBreakdown || {}).length} wards</p>
+          </div>
+          <div className="glass-card p-4">
+            <p className="text-sm text-muted">Escalated</p>
+            <p className="text-2xl font-semibold">{dashboard.issues.filter((issue) => issue.status === 'escalated').length}</p>
+          </div>
+          <div className="glass-card p-4">
+            <p className="text-sm text-muted">Critical Needs</p>
+            <p className="text-2xl font-semibold">{dashboard.issues.filter((issue) => issue.priority === 'critical').length}</p>
+          </div>
+        </div>
+
+        {analytics.wardMetrics && analytics.wardMetrics.length > 0 && (
+          <div className="glass-card p-6 mb-8">
+            <h3 className="text-lg font-semibold mb-4">Ward Command Summary</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-muted border-b border-white/10">
+                    <th className="text-left py-2">Ward</th>
+                    <th className="text-right py-2">Complaints</th>
+                    <th className="text-right py-2">Critical</th>
+                    <th className="text-right py-2">Pending</th>
+                    <th className="text-right py-2">Resolved</th>
+                    <th className="text-right py-2">Escalated</th>
+                    <th className="text-right py-2">SLA</th>
+                    <th className="text-left py-2">Department Mix</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analytics.wardMetrics.map((ward) => (
+                    <tr key={`${ward.ward}-${ward.borough}`} className="border-b border-white/5">
+                      <td className="py-2">
+                        <div className="font-medium">{ward.wardNumber ? `Ward ${ward.wardNumber}` : ward.ward}</div>
+                        <div className="text-xs text-muted">{ward.borough}</div>
+                      </td>
+                      <td className="text-right py-2">{ward.complaintCount}</td>
+                      <td className="text-right py-2">{ward.criticalCount}</td>
+                      <td className="text-right py-2">{ward.pendingCount}</td>
+                      <td className="text-right py-2">{ward.resolvedCount}</td>
+                      <td className="text-right py-2">{ward.escalatedCount}</td>
+                      <td className="text-right py-2">{ward.slaCompliance}%</td>
+                      <td className="py-2 text-xs text-muted">
+                        {Object.entries(ward.departmentBreakdown).slice(0, 2).map(([department, count]) => `${department} (${count})`).join(', ')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {analytics.departmentPerformance && analytics.departmentPerformance.length > 0 && (
           <div className="glass-card p-6 mb-8">

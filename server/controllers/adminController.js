@@ -10,8 +10,15 @@ export async function getAdminDashboard(req, res, next) {
       cacheTtlMs: 60 * 1000,
       timeoutMs: 20_000,
       requestFn: async () => {
-        const analytics = await getAnalytics();
-        const issues = await getIssues();
+        const filters = {
+          ward: req.query.ward,
+          borough: req.query.borough,
+          department: req.query.department,
+          status: req.query.status,
+          priority: req.query.priority,
+        };
+        const analytics = await getAnalytics(filters);
+        const issues = await getIssues(filters);
 
         return {
           analytics,
@@ -25,6 +32,8 @@ export async function getAdminDashboard(req, res, next) {
               priority: i.priority,
               status: i.status,
               department: i.department,
+              borough: i.location?.borough || i.borough,
+              ward: i.location?.ward || i.ward,
               category: i.category,
               title: i.title,
             })),

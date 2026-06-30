@@ -198,8 +198,8 @@ export const api = {
     );
   },
 
-  getAdminDashboard: (token?: string | null) =>
-    request<AdminDashboard>('/admin', {}, token),
+  getAdminDashboard: (token?: string | null, filters?: Record<string, string | undefined>) =>
+    request<AdminDashboard>(`/admin${filters ? '?' + new URLSearchParams(Object.entries(filters).filter(([, value]) => Boolean(value)) as [string, string][]) : ''}`, {}, token),
 
   getDepartmentRankings: (token?: string | null) =>
     request<{ rankings: DepartmentPerformance[] }>('/admin/rankings', {}, token),
@@ -210,6 +210,8 @@ export interface GeoLocation {
   lng: number;
   address?: string;
   ward?: string;
+  borough?: string;
+  locality?: string;
   landmark?: string;
   road?: string;
 }
@@ -372,6 +374,18 @@ export interface Analytics {
   }>;
   departmentBreakdown?: Record<string, number>;
   wardBreakdown?: Record<string, number>;
+  wardMetrics?: Array<{
+    wardNumber: number | null;
+    ward: string;
+    borough: string;
+    complaintCount: number;
+    criticalCount: number;
+    pendingCount: number;
+    resolvedCount: number;
+    escalatedCount: number;
+    slaCompliance: number;
+    departmentBreakdown: Record<string, number>;
+  }>;
   departmentPerformance?: DepartmentPerformance[];
   resolutionTrends?: Record<string, { reported: number; resolved: number }>;
   peakReportingHours?: Array<{ hour: number; count: number }>;
@@ -450,6 +464,8 @@ export interface AdminDashboard {
     priority: string;
     status: string;
     department?: string;
+    borough?: string;
+    ward?: string;
     category: string;
     title: string;
   }>;

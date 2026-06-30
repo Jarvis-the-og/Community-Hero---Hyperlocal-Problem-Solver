@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Filter } from 'lucide-react';
 import { IssueMap } from '@/components/map/IssueMap';
@@ -23,11 +23,36 @@ export default function MapPage() {
 
   const { issues, loading } = useNearbyIssues(queryLat, queryLng, queryRadius, true);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [boroughFilter, setBoroughFilter] = useState('');
+  const [wardFilter, setWardFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
   const [selectedIssue, setSelectedIssue] = useState<string | null>(null);
 
-  const filtered = categoryFilter
-    ? issues.filter((i) => i.category === categoryFilter)
-    : issues;
+  const wardOptions = useMemo(() => {
+    return Array.from(
+      new Set(issues.map((issue) => issue.location?.ward).filter((ward): ward is string => Boolean(ward)))
+    ).sort((a, b) => a.localeCompare(b));
+  }, [issues]);
+
+  const boroughOptions = useMemo(() => {
+    return Array.from(
+      new Set(issues.map((issue) => issue.location?.borough).filter((borough): borough is string => Boolean(borough)))
+    ).sort((a, b) => a.localeCompare(b));
+  }, [issues]);
+
+  const departmentOptions = useMemo(() => {
+    return Array.from(
+      new Set(issues.map((issue) => issue.department).filter((department): department is string => Boolean(department)))
+    ).sort((a, b) => a.localeCompare(b));
+  }, [issues]);
+
+  const filtered = issues.filter((issue) => {
+    if (categoryFilter && issue.category !== categoryFilter) return false;
+    if (boroughFilter && issue.location?.borough !== boroughFilter) return false;
+    if (wardFilter && issue.location?.ward !== wardFilter) return false;
+    if (departmentFilter && issue.department !== departmentFilter) return false;
+    return true;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -37,17 +62,25 @@ export default function MapPage() {
             <h1 className="text-3xl font-bold">Issue Map</h1>
             <p className="text-muted mt-1">Explore nearby community issues</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Filter className="w-4 h-4 text-muted" />
-            <Select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-40"
-            >
+            <Select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-36">
               <option value="">All Categories</option>
               {ISSUE_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
               ))}
+            </Select>
+            <Select value={boroughFilter} onChange={(e) => setBoroughFilter(e.target.value)} className="w-36">
+              <option value="">All Boroughs</option>
+              {boroughOptions.map((borough) => <option key={borough} value={borough}>{borough}</option>)}
+            </Select>
+            <Select value={wardFilter} onChange={(e) => setWardFilter(e.target.value)} className="w-36">
+              <option value="">All Wards</option>
+              {wardOptions.map((ward) => <option key={ward} value={ward}>{ward}</option>)}
+            </Select>
+            <Select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} className="w-36">
+              <option value="">All Departments</option>
+              {departmentOptions.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
             </Select>
           </div>
         </div>

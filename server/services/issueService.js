@@ -10,6 +10,7 @@ import {
 } from '../services/firestore/restClient.js';
 import { IssueStatus } from '@community-hero/shared/enums/index.js';
 import { createCacheKey, withGovernedRequest } from './governance/index.js';
+import { buildWardAwareIssue, getWardCatalog } from './wardCatalog.js';
 
 function useFirestoreRest() {
   return !isFirebaseAdminReady() && isRestClientAvailable();
@@ -32,6 +33,7 @@ function omitUndefinedValues(value) {
 }
 
 export async function getIssues(filters = {}) {
+  const catalog = await getWardCatalog();
   const db = getDb();
   if (db) {
     try {
@@ -43,6 +45,7 @@ export async function getIssues(filters = {}) {
       if (filters.assignedTo) query = query.where('assignedTo', '==', filters.assignedTo);
       const snapshot = await query.limit(200).get();
       let docs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      docs = docs.map((issue) => buildWardAwareIssue(issue, catalog));
       docs = applyClientFilters(docs, filters);
       return docs;
     } catch (error) {
@@ -56,6 +59,7 @@ export async function getIssues(filters = {}) {
         if (filters.assignedTo) query = query.where('assignedTo', '==', filters.assignedTo);
         const snapshot = await query.limit(200).get();
         let docs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        docs = docs.map((issue) => buildWardAwareIssue(issue, catalog));
         docs = applyClientFilters(docs, filters);
         return docs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       }
@@ -65,10 +69,10 @@ export async function getIssues(filters = {}) {
 
   if (useFirestoreRest()) {
     const issues = await restGetCollection('issues', filters);
-    return applyClientFilters(issues, filters);
+    return applyClientFilters(issues.map((issue) => buildWardAwareIssue(issue, catalog)), filters);
   }
 
-  return applyClientFilters(inMemoryStore.getIssues(filters), filters);
+  return applyClientFilters(inMemoryStore.getIssues(filters).map((issue) => buildWardAwareIssue(issue, catalog)), filters);
 }
 
 function applyClientFilters(issues, filters) {
@@ -76,8 +80,16 @@ function applyClientFilters(issues, filters) {
   if (filters.priority) {
     result = result.filter((i) => i.priority === filters.priority);
   }
-  if (filters.ward) {
-    result = result.filter((i) => i.location?.ward === filters.ward);
+  if (filters.ward || filters.wardNumber) {
+    const requestedWard = String(filters.ward || filters.wardNumber || '').toLowerCase();
+    result = result.filter((i) => {
+      const wardNumber = String(i.wardNumber ?? i.location?.wardNumber ?? '').toLowerCase();
+      const wardLabel = String(i.location?.ward || i.ward || '').toLowerCase();
+      return wardNumber === requestedWard || wardLabel.includes(requestedWard);
+    });
+  }
+  if (filters.borough) {
+    result = result.filter((i) => String(i.borough || i.location?.borough || '').toLowerCase() === filters.borough.toLowerCase());
   }
   if (filters.dateFrom) {
     const from = new Date(filters.dateFrom).getTime();
@@ -91,23 +103,26 @@ function applyClientFilters(issues, filters) {
 }
 
 export async function getIssueById(id) {
+  const catalog = await getWardCatalog();
   const db = getDb();
   if (db) {
     const doc = await db.collection('issues').doc(id).get();
     if (!doc.exists) return null;
-    return { id: doc.id, ...doc.data() };
+    return buildWardAwareIssue({ id: doc.id, ...doc.data() }, catalog);
   }
 
   if (useFirestoreRest()) {
-    return restGetDoc('issues', id);
+    return buildWardAwareIssue(await restGetDoc('issues', id), catalog);
   }
 
-  return inMemoryStore.getIssue(id);
+  return buildWardAwareIssue(inMemoryStore.getIssue(id), catalog);
 }
 
 export async function createIssue(data) {
+  const catalog = await getWardCatalog();
+  const normalizedData = buildWardAwareIssue(data, catalog);
   const issueData = omitUndefinedValues({
-    ...data,
+    ...normalizedData,
     supportCount: data.supportCount ?? 0,
     verificationScore: data.verificationScore ?? 0,
     createdAt: new Date().toISOString(),
@@ -131,7 +146,9 @@ export async function createIssue(data) {
 }
 
 export async function updateIssue(id, updates) {
-  const updateData = omitUndefinedValues({ ...updates, updatedAt: new Date().toISOString() });
+  const catalog = await getWardCatalog();
+  const normalizedUpdates = buildWardAwareIssue(updates, catalog);
+  const updateData = omitUndefinedValues({ ...normalizedUpdates, updatedAt: new Date().toISOString() });
 
   const db = getDb();
   if (db) {
@@ -579,6 +596,63 @@ function computeWardBreakdown(issues) {
   return counts;
 }
 
+function computeWardMetrics(issues) {
+  const grouped = new Map();
+
+  issues.forEach((issue) => {
+    const wardNumber = issue.wardNumber ?? issue.location?.wardNumber ?? null;
+    const wardLabel = issue.location?.ward || issue.ward || (wardNumber ? `Ward ${wardNumber}` : 'Unknown');
+    const borough = issue.borough || issue.location?.borough || 'Unassigned';
+    const key = `${wardNumber ?? 'unknown'}::${wardLabel}::${borough}`;
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        wardNumber: wardNumber ?? null,
+        ward: wardLabel,
+        borough,
+        complaintCount: 0,
+        criticalCount: 0,
+        pendingCount: 0,
+        resolvedCount: 0,
+        escalatedCount: 0,
+        slaCompliance: 0,
+        departmentBreakdown: {},
+      });
+    }
+
+    const entry = grouped.get(key);
+    entry.complaintCount += 1;
+    if (issue.priority === 'critical') entry.criticalCount += 1;
+    if (['completed', 'ai_verified'].includes(issue.status)) {
+      entry.resolvedCount += 1;
+    } else if (!['rejected'].includes(issue.status)) {
+      entry.pendingCount += 1;
+    }
+    if (issue.status === 'escalated') entry.escalatedCount += 1;
+
+    const createdAt = issue.createdAt ? new Date(issue.createdAt).getTime() : null;
+    const updatedAt = issue.updatedAt ? new Date(issue.updatedAt).getTime() : null;
+    const withinSla = createdAt && updatedAt && (updatedAt - createdAt) <= 72 * 60 * 60 * 1000;
+    if (['completed', 'ai_verified'].includes(issue.status) && withinSla) {
+      entry.slaCompliance += 1;
+    }
+
+    const department = issue.department || 'Unassigned';
+    entry.departmentBreakdown[department] = (entry.departmentBreakdown[department] || 0) + 1;
+  });
+
+  return Array.from(grouped.values())
+    .sort((a, b) => {
+      const wardA = a.wardNumber ?? Number.MAX_SAFE_INTEGER;
+      const wardB = b.wardNumber ?? Number.MAX_SAFE_INTEGER;
+      return wardA - wardB;
+    })
+    .map((entry) => ({
+      ...entry,
+      slaCompliance: entry.complaintCount ? Math.round((entry.slaCompliance / entry.complaintCount) * 100) : 0,
+    }));
+}
+
 function computeDepartmentPerformance(issues) {
   const depts = {};
   issues.forEach((i) => {
@@ -675,7 +749,7 @@ function generateAiInsights(issues) {
   return insights.length ? insights : ['City-wide complaint levels are within normal range. Continue monitoring department performance.'];
 }
 
-export async function getAnalytics() {
+export async function getAnalytics(filters = {}) {
   return withGovernedRequest({
     api: 'firestore',
     operation: 'analytics_summary',
@@ -687,6 +761,7 @@ export async function getAnalytics() {
       let issues = [];
       let usersCount = 0;
 
+      const catalog = await getWardCatalog();
       if (db) {
         const snapshot = await db.collection('issues').get();
         issues = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -696,6 +771,22 @@ export async function getAnalytics() {
         usersCount = (await restGetCollection('users')).length;
       } else {
         return inMemoryStore.getAnalytics();
+      }
+
+      issues = issues.map((issue) => buildWardAwareIssue(issue, catalog));
+      if (filters.department) issues = issues.filter((issue) => issue.department === filters.department);
+      if (filters.status) issues = issues.filter((issue) => issue.status === filters.status);
+      if (filters.priority) issues = issues.filter((issue) => issue.priority === filters.priority);
+      if (filters.ward || filters.wardNumber) {
+        const requestedWard = String(filters.ward || filters.wardNumber || '').toLowerCase();
+        issues = issues.filter((issue) => {
+          const wardNumber = String(issue.wardNumber ?? issue.location?.wardNumber ?? '').toLowerCase();
+          const wardLabel = String(issue.location?.ward || issue.ward || '').toLowerCase();
+          return wardNumber === requestedWard || wardLabel.includes(requestedWard);
+        });
+      }
+      if (filters.borough) {
+        issues = issues.filter((issue) => String(issue.borough || issue.location?.borough || '').toLowerCase() === filters.borough.toLowerCase());
       }
 
       const resolved = issues.filter((i) => ['completed', 'ai_verified'].includes(i.status)).length;
@@ -728,6 +819,7 @@ export async function getAnalytics() {
         topContributors,
         departmentBreakdown: computeDepartmentBreakdown(issues),
         wardBreakdown: computeWardBreakdown(issues),
+        wardMetrics: computeWardMetrics(issues),
         departmentPerformance: computeDepartmentPerformance(issues),
         resolutionTrends: computeResolutionTrends(issues),
         peakReportingHours: computePeakReportingHours(issues),
