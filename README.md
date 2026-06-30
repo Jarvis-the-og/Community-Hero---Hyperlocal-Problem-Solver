@@ -234,6 +234,8 @@ Community Hero is built with operational safeguards suited to public-sector syst
 
 ## Documentation
 
+For a detailed explanation of features, refer to the [Feature Documentation](https://docs.google.com/document/d/11TaQA8-L2AzGVt9FJKBXRSNvDLw6DJz5I7SKHBXR3Xw/edit?usp=sharing).
+
 Additional implementation details live in the `docs/` directory:
 
 - [System Architecture](docs/01_system_architecture.md)
