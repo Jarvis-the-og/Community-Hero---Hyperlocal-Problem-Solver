@@ -7,6 +7,14 @@ Hyperlocal civic grievance management platform for municipalities.
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Status: Production-Ready](https://img.shields.io/badge/Status-Production--Ready-success)
 
+## Live Demo
+
+Frontend:
+https://community-hero-57477.web.app
+
+Backend API:
+https://community-hero-api-621705864569.asia-south2.run.app
+
 ## Overview
 
 Community Hero helps cities manage civic complaints from the first citizen report through assignment, field resolution, verification, and final confirmation. It combines a citizen-facing issue reporting flow with role-based department and worker operations, AI-assisted categorization and verification, maps, analytics, notifications, and gamification.

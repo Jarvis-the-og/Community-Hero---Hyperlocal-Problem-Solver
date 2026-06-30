@@ -1,10 +1,14 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
 
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
   token?: string | null
 ): Promise<T> {
+  if (!API_BASE) {
+    throw new Error('NEXT_PUBLIC_API_URL is not set');
+  }
+
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
   };
